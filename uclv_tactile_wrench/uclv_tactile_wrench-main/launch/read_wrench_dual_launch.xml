@@ -1,0 +1,124 @@
+<launch>
+    <arg name="serial_port_finger0" default="/dev/ttyUSB0" />
+    <arg name="serial_port_finger1" default="/dev/ttyUSB1" />
+
+    <arg name="tf_prefix" default=""/>
+    <arg name="tf_subprefix_finger0" default="left_"/>
+    <arg name="frame_id_finger0" default="fingertip0" />
+    <arg name="tf_subprefix_finger1" default="right_"/>
+    <arg name="frame_id_finger1" default="fingertip1" />
+    <arg name="frame_id_grasp" default="grasp_frame"/>
+
+    <arg name="finger0_calibration_file" default="/home/mdesimone/Finger_files/F402/ANNCalib/NET_FILE.txt" />
+    <arg name="finger1_calibration_file" default="/home/mdesimone/Finger_files/F401/ANNCalib/NET_FILE.txt" />
+    <arg name="fingers_boud_rate" default="1000000" />
+
+    <arg name="finger_distance_topic" default="distance"/>
+    <arg name="finger_distance_offset" default="0.0"/>
+
+    <arg name="bool_filter_voltage" default="false" />
+    <arg name="bool_use_filtered_voltage" default="$(var bool_filter_voltage)" />
+    <arg name="filter_voltage_cut_freq" default="50.0" />
+    <arg name="filter_voltage_rate" default="500.0" />
+
+    <arg name="bool_tactile_logic_filter" default="true" />
+    <arg name="bool_use_tactile_logic_filter" default="$(var bool_tactile_logic_filter)" />
+    <arg name="tactile_logic_filter_voltage_thr" default="0.05" />
+
+    <arg name="bool_filter_wrench" default="true" />
+    <arg name="bool_use_filtered_wrench" default="$(var bool_filter_wrench)" />
+    <arg name="filter_wrench_cut_freq" default="50.0" />
+    <arg name="filter_wrench_rate" default="500.0" />
+
+    <!-- Arg that will not change in practice -->
+    <arg name="wrench_topic" default="wrench"/>
+    <arg name="namespace_finger0" default="finger0" />
+    <arg name="namespace_finger1" default="finger1" />
+    <arg name="grasp_force_topic" default="grasp_force"/>
+
+    <!-- Finger0 -->
+    <group>
+        <push-ros-namespace namespace="$(var namespace_finger0)"/>
+        <include file="$(find-pkg-share uclv_tactile_wrench)/launch/read_wrench_launch.xml">
+            <arg name="serial_port" value="$(var serial_port_finger0)" />
+            <arg name="tf_prefix" value="$(var tf_prefix)$(var tf_subprefix_finger0)"/>
+            <arg name="frame_id" value="$(var frame_id_finger0)" />
+            <arg name="finger_calibration_file" value="$(var finger0_calibration_file)" />
+            <arg name="baud_rate" value="$(var fingers_boud_rate)" />
+            <arg name="bool_tactile_logic_filter" value="$(var bool_tactile_logic_filter)" />
+            <arg name="bool_use_tactile_logic_filter" value="$(var bool_use_tactile_logic_filter)" />
+            <arg name="logic_filter_voltage_thr" value="$(var tactile_logic_filter_voltage_thr)" />
+            <arg name="bool_filter_voltage" value="$(var bool_filter_voltage)" />
+            <arg name="bool_use_filtered_voltage" value="$(var bool_use_filtered_voltage)" />
+            <arg name="filter_voltage_cut_freq" value="$(var filter_voltage_cut_freq)" />
+            <arg name="filter_voltage_rate" value="$(var filter_voltage_rate)" />
+            <arg name="bool_filter_wrench" value="$(var bool_filter_wrench)" />
+            <arg name="filter_wrench_cut_freq" value="$(var filter_wrench_cut_freq)" />
+            <arg name="filter_wrench_rate" value="$(var filter_wrench_rate)" />
+        </include>
+    </group>
+
+    <!-- Finger1 -->
+    <group>
+        <push-ros-namespace namespace="$(var namespace_finger1)"/>
+        <include file="$(find-pkg-share uclv_tactile_wrench)/launch/read_wrench_launch.xml">
+            <arg name="serial_port" value="$(var serial_port_finger1)" />
+            <arg name="tf_prefix" value="$(var tf_prefix)$(var tf_subprefix_finger1)"/>
+            <arg name="frame_id" value="$(var frame_id_finger1)" />
+            <arg name="finger_calibration_file" value="$(var finger1_calibration_file)" />
+            <arg name="baud_rate" value="$(var fingers_boud_rate)" />
+            <arg name="bool_tactile_logic_filter" value="$(var bool_tactile_logic_filter)" />
+            <arg name="bool_use_tactile_logic_filter" value="$(var bool_use_tactile_logic_filter)" />
+            <arg name="logic_filter_voltage_thr" value="$(var tactile_logic_filter_voltage_thr)" />
+            <arg name="bool_filter_voltage" value="$(var bool_filter_voltage)" />
+            <arg name="bool_use_filtered_voltage" value="$(var bool_use_filtered_voltage)" />
+            <arg name="filter_voltage_cut_freq" value="$(var filter_voltage_cut_freq)" />
+            <arg name="filter_voltage_rate" value="$(var filter_voltage_rate)" />
+            <arg name="bool_filter_wrench" value="$(var bool_filter_wrench)" />
+            <arg name="filter_wrench_cut_freq" value="$(var filter_wrench_cut_freq)" />
+            <arg name="filter_wrench_rate" value="$(var filter_wrench_rate)" />
+        </include>
+    </group>
+
+    <!-- Combine wrench -->
+    <node name="combine_wrench" pkg="uclv_tactile_wrench" exec="combine_wrench" output="screen">
+        <!-- <param 
+            if="$(var bool_use_filtered_wrench)" 
+            name="wrench0_topic" 
+             
+            value="$(var namespace_finger0)/wrench_filter"
+        />
+        <param 
+            unless="$(var bool_use_filtered_wrench)"
+            name="wrench0_topic" 
+             
+            value="$(var namespace_finger0)/wrench"
+        /> -->
+        <param 
+            name="wrench0_topic" 
+            value="$(var namespace_finger0)/wrench"
+        />
+        <!-- <param 
+            if="$(var bool_use_filtered_wrench)"
+            name="wrench1_topic" 
+             
+            value="$(var namespace_finger1)/wrench_filter"
+        />
+        <param 
+            unless="$(var bool_use_filtered_wrench)"
+            name="wrench1_topic" 
+             
+            value="$(var namespace_finger1)/wrench"
+        /> -->
+        <param 
+            name="wrench1_topic" 
+            value="$(var namespace_finger1)/wrench"
+        />
+        <param name="distance_topic"  value="$(var finger_distance_topic)"/>
+        <param name="distance_offset"  value="$(var finger_distance_offset)"/>
+        <param name="tf_prefix"  value="$(var tf_prefix)"/>
+        <param name="frame_id"  value="$(var frame_id_grasp)"/>
+        <param name="wrench_out_topic"  value="$(var wrench_topic)"/>
+        <param name="grasp_force_topic"  value="$(var grasp_force_topic)"/>
+    </node>
+</launch>

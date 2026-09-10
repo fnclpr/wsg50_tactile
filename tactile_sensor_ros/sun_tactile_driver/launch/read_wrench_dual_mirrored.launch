@@ -1,0 +1,102 @@
+<launch>
+
+<arg name="serial_port_finger" default="/dev/ttyUSB0" />
+
+<arg name="tf_prefix" default=""/>
+<arg name="tf_subprefix_finger0" default="left/"/>
+<arg name="frame_id_finger0" default="fingertip0" />
+<arg name="tf_subprefix_finger1" default="right/"/>
+<arg name="frame_id_finger1" default="fingertip1" />
+<arg name="frame_id_grasp" default="grasp_frame"/>
+
+<arg name="grasp_force_topic" default="grasp_force"/>
+
+<arg name="finger_code" default="#F402" />
+<arg name="finger_boud_rate" default="1000000" />
+
+<arg name="finger_distance_topic" default="distance"/>
+<arg name="finger_distance_offset" default="0.0"/>
+
+<arg name="bool_filter_voltage" default="false" />
+<arg name="bool_use_filtered_voltage" default="$(arg bool_filter_voltage)" />
+<arg name="filter_voltage_cut_freq" default="50.0" />
+<arg name="filter_voltage_rate" default="500.0" />
+
+<arg name="bool_tactile_logic_filter" default="true" />
+<arg name="bool_use_tactile_logic_filter" default="$(arg bool_tactile_logic_filter)" />
+<arg name="tactile_logic_filter_voltage_thr" default="0.05" />
+
+<arg name="bool_filter_wrench" default="true" />
+<arg name="bool_use_filtered_wrench" default="$(arg bool_filter_wrench)" />
+<arg name="filter_wrench_cut_freq" default="50.0" />
+<arg name="filter_wrench_rate" default="500.0" />
+
+<!-- Arg that will not change in practice -->
+<arg name="wrench_topic" default="wrench"/>
+<arg name="namespace_finger0" default="finger0" />
+<arg name="namespace_finger1" default="finger1" />
+<arg name="compute_bias_action" default="compute_bias_action" />
+
+<!-- Finger0 -->
+    <group ns="$(arg namespace_finger0)">
+        <include file="$(find sun_tactile_driver)/launch/read_wrench.launch">
+
+            <arg name="serial_port" value="$(arg serial_port_finger)" />
+
+            <arg name="tf_prefix" value="$(arg tf_prefix)$(arg tf_subprefix_finger0)"/>
+            <arg name="frame_id" value="$(arg frame_id_finger0)" />
+
+            <arg name="finger_code" value="$(arg finger_code)" />
+
+            <arg name="baud_rate" value="$(arg finger_boud_rate)" />
+
+            <arg name="bool_tactile_logic_filter" value="$(arg bool_tactile_logic_filter)" />
+            <arg name="bool_use_tactile_logic_filter" value="$(arg bool_use_tactile_logic_filter)" />
+            <arg name="logic_filter_voltage_thr" value="$(arg tactile_logic_filter_voltage_thr)" />
+
+            <arg name="bool_filter_voltage" value="$(arg bool_filter_voltage)" />
+            <arg name="bool_use_filtered_voltage" value="$(arg bool_use_filtered_voltage)" />
+            <arg name="filter_voltage_cut_freq" value="$(arg filter_voltage_cut_freq)" />
+            <arg name="filter_voltage_rate" value="$(arg filter_voltage_rate)" />
+
+            <arg name="bool_filter_wrench" value="$(arg bool_filter_wrench)" />
+            <arg name="filter_wrench_cut_freq" value="$(arg filter_wrench_cut_freq)" />
+            <arg name="filter_wrench_rate" value="$(arg filter_wrench_rate)" />
+    
+        </include>
+    </group>
+
+<!-- Finger1 (mirrored)-->
+    <include file="$(find sun_tactile_driver)/launch/mirror_wrench.launch">
+
+        <arg name="namespace_topics_to_be_duplicated" value="$(arg namespace_finger0)" />
+        <arg name="namespace_duplicated_topics" value="$(arg namespace_finger1)" />
+
+        <arg name="tf_prefix" value="$(arg tf_prefix)$(arg tf_subprefix_finger1)"/>
+        <arg name="frame_id" value="$(arg frame_id_finger1)" />
+
+        <arg name="in_action_compute_bias" default="$(arg namespace_finger0)/$(arg compute_bias_action)" />
+        <arg name="out_action_compute_bias" default="$(arg namespace_finger1)/$(arg compute_bias_action)" />
+    
+    </include>
+    
+
+<!-- Combine wrench -->
+
+    <node name="combine_wrench" pkg="sun_tactile_driver" type="combine_wrench" output="screen">
+
+        <param name="wrench0_topic" type="string" value="$(arg namespace_finger0)/wrench"/>
+        <param name="wrench1_topic" type="string" value="$(arg namespace_finger1)/wrench"/>
+
+        <param name="distance_topic" type="string" value="$(arg finger_distance_topic)"/>
+        <param name="distance_offset" type="double" value="$(arg finger_distance_offset)"/>
+
+        <param name="tf_prefix" type="string" value="$(arg tf_prefix)"/>
+        <param name="frame_id" type="string" value="$(arg frame_id_grasp)"/>
+
+        <param name="wrench_out_topic" type="string" value="$(arg wrench_topic)"/>
+        <param name="grasp_force_topic" type="string" value="$(arg grasp_force_topic)"/>
+
+    </node>
+
+</launch>

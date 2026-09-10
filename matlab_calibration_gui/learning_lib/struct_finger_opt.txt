@@ -1,0 +1,48 @@
+
+sun_pca_train_out
+    net : matlab_network_struct
+    settings_i : to_be_removed
+    settings_t : to_be_removed
+    pca : int % 0 = no pca
+    pca_mean : double vector
+    Ureduce : matrix
+    train_performance : double
+    cross_valid_performance : double
+    ... various *_performance : double
+
+sun_pca_train_opt
+    checkpoint_file : string
+    b_use_gpu : bool
+    pca : int
+    net : matlab_network_struct
+
+finger_decimation_opt
+    b_raw_voltage : bool
+    min_targets : double vector
+    max_targets : double vector
+    decimation_radius : double vector
+    input_scale : double | 'max' | 'maxmax'
+    target_scale : [double double] | 'max' | 'maxmax'
+    
+finger_train
+    data_file : string
+    decimated_file : string
+    decimation_opt : finger_decimation_opt
+    perc_zeros : double
+    b_raw_voltage : bool
+    raw_zero_file : string
+    remove_volts : int vector %from userData
+    finger_id : string %from userData
+    train_opt : sun_pca_train_opt
+    train_out : sun_pca_train_out
+
+finger_cross_train
+    input_file : string
+    cross_valid_perc : double
+    train_file : string
+    cross_valid_file : string
+    decimated_cross_valid_file : string
+    cross_valid_decimation_opt : finger_decimation_opt
+    cross_valid_perc_zeros : double
+    finger_trains{} : cell of finger_train
+    

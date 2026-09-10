@@ -1,0 +1,1565 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef robot_calibration_gui < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        FingerCalibrationUIFigure  matlab.ui.Figure
+        FileMenu                   matlab.ui.container.Menu
+        NewMenu                    matlab.ui.container.Menu
+        SaveMenu                   matlab.ui.container.Menu
+        SavewithNameMenu           matlab.ui.container.Menu
+        LoadMenu                   matlab.ui.container.Menu
+        ToolMenu                   matlab.ui.container.Menu
+        ROSMenu                    matlab.ui.container.Menu
+        initROSMenu                matlab.ui.container.Menu
+        stopROSMenu                matlab.ui.container.Menu
+        DBGMenu                    matlab.ui.container.Menu
+        GUI_refresh_minimalMenu    matlab.ui.container.Menu
+        gridLayout_main_grid       matlab.ui.container.GridLayout
+        GridLayout2                matlab.ui.container.GridLayout
+        Panel_ax_fxfy              matlab.ui.container.Panel
+        GridLayout_ax_fxfy         matlab.ui.container.GridLayout
+        axes_fx_fy                 matlab.ui.control.UIAxes
+        Panel_ax_fxtau             matlab.ui.container.Panel
+        GridLayout_ax_fxtau        matlab.ui.container.GridLayout
+        axes_fx_tau                matlab.ui.control.UIAxes
+        Panel_ax_taufy             matlab.ui.container.Panel
+        GridLayout_ax_taufy        matlab.ui.container.GridLayout
+        axes_tau_fy                matlab.ui.control.UIAxes
+        Panel_ax_3d                matlab.ui.container.Panel
+        GridLayout_ax_3d           matlab.ui.container.GridLayout
+        axes_3d                    matlab.ui.control.UIAxes
+        GridLayout3                matlab.ui.container.GridLayout
+        GridLayout4                matlab.ui.container.GridLayout
+        lamp_status                matlab.ui.control.Lamp
+        label_status               matlab.ui.control.Label
+        switch_run                 matlab.ui.control.Switch
+        ABORTButton                matlab.ui.control.Button
+        Panel_ax_centroid          matlab.ui.container.Panel
+        GridLayout_ax_centroid     matlab.ui.container.GridLayout
+        axes_centroid              matlab.ui.control.UIAxes
+        TabGroup                   matlab.ui.container.TabGroup
+        GUITab                     matlab.ui.container.Tab
+        GridLayout8                matlab.ui.container.GridLayout
+        GridLayout9                matlab.ui.container.GridLayout
+        TotSamplesLabel            matlab.ui.control.Label
+        label_tot_samples          matlab.ui.control.Label
+        ThisSamplesLabel           matlab.ui.control.Label
+        label_this_samples         matlab.ui.control.Label
+        GridLayout10               matlab.ui.container.GridLayout
+        ZoneDropDownLabel          matlab.ui.control.Label
+        dropDown_zone              matlab.ui.control.DropDown
+        FnIntervalLabel            matlab.ui.control.Label
+        dropDown_fn_interval       matlab.ui.control.DropDown
+        GridLayout11               matlab.ui.container.GridLayout
+        PlotRadiusSliderLabel      matlab.ui.control.Label
+        slider_plot_radius         matlab.ui.control.Slider
+        RobotCalibTab              matlab.ui.container.Tab
+        GridLayoutRobotCalibTab    matlab.ui.container.GridLayout
+        GridLayout13               matlab.ui.container.GridLayout
+        ThetaLabel                 matlab.ui.control.Label
+        label_theta                matlab.ui.control.Label
+        PhiLabel                   matlab.ui.control.Label
+        label_phi                  matlab.ui.control.Label
+        GridLayout14               matlab.ui.container.GridLayout
+        label_fn                   matlab.ui.control.Label
+        FnLabel                    matlab.ui.control.Label
+        WrenchLabel                matlab.ui.control.Label
+        label_wrench               matlab.ui.control.Label
+        GridLayout18               matlab.ui.container.GridLayout
+        checkBox_update_gui        matlab.ui.control.CheckBox
+        RefreshGUIButton           matlab.ui.control.Button
+        LogTab                     matlab.ui.container.Tab
+        GridLayout15               matlab.ui.container.GridLayout
+        textArea_log               matlab.ui.control.TextArea
+    end
+
+    
+    properties (Access = public)
+        log_level % The LogLevel 0=DBG, 1=INFO, 2 = ERROR
+        projectData % AllProjectData structure to be saved and loaded
+        dependent_data % dependent data from progjectData
+        project_path % path str to the savefile
+        dyn_handles % Dynamic handles
+        ros_handles % the ros struct handles
+        called_app % Called app
+        
+        % GUI PLOT VARS
+        gui_refresh_countdown %
+   
+    end
+    
+    methods (Access = public)
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%% MISC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function updatePath(app)
+            % Update matlab path for this app
+            app.logDBG("Updating Path...");
+            [filepath,~,~] = fileparts(mfilename('fullpath'));
+            app.logDBG(['gui_path= ' filepath])
+            addpath(filepath);
+            addpath([filepath '/gui_lib']);
+            addpath([filepath '/ros_lib']);
+            app.logDBG("Updating Path Updated");
+        end
+        
+        function logDBG0(app, msg)
+            % Log with level DBG
+            if app.log_level <= 0
+                app.writeLog( ['[DEBUG] ' convertStringsToChars(msg)] );
+            end
+        end
+        
+        function logDBG(app, msg)
+            % Log with level DBG
+            if app.log_level <= 1
+                app.writeLog( ['[DEBUG] ' convertStringsToChars(msg)] );
+            end
+        end
+        
+        function logINFO(app, msg)
+            % Log with level INFO
+            if app.log_level <= 2
+                app.writeLog( ['[INFO] ' convertStringsToChars(msg)] );
+            end
+        end
+        
+        function logWARN(app, msg)
+            % Log with level INFO
+            if app.log_level <= 3
+                app.writeLog( ['[WARNING] ' convertStringsToChars(msg)] );
+            end
+        end
+        
+        function logERR(app, msg)
+            % LOG with level ERROR
+            if app.log_level <= 4
+                app.writeLog( ['[ERROR] ' convertStringsToChars(msg)] );
+            end
+        end
+        
+        function writeLog(app, msg)
+            app.textArea_log.Value = vertcat(convertStringsToChars(msg), app.textArea_log.Value);
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%% SAVE/LOAD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function newProject(app, full_path)
+            % ask the relevant initial value to the user (TODO)
+            % clear all and initialize a new project
+
+            app.GUI_displayWarn("NEW Project", 'New Project')
+            projectData_ = create_empty_project(full_path);
+            
+            %clear all
+            app.GUI_clearAll();
+            
+            % Update the dependent_data
+            [app.projectData, app.dependent_data]= struct_projectData(projectData_);
+            
+            % Save the project
+            app.saveProject(full_path);
+            
+            %refreshAll
+            app.GUI_refreshAll();
+            
+        end
+        
+        function saveProject(app, path)
+            % save the project in the desired path
+            % update the path
+            if nargin<2
+                path = app.project_path;
+            end
+            app.logINFO(['save on file ' path '...'])
+            projectData = app.projectData; %#ok<ADPROPLC> 
+            save(path,'projectData');
+            app.project_path = path;
+            app.logDBG('save on file DONE')
+        end
+        
+        function loadProject(app, path)
+            % Load the project from the path
+            % Update the gui 
+            % this does not check if project already loaded
+            app.logINFO(['loadProject from ' path '...'])
+            data = load(path);
+            app.project_path = path;
+            [app.projectData, app.dependent_data] = struct_projectData(data.projectData);
+            app.GUI_refreshAll();
+            app.logDBG('loadProject DONE')         
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%% ROS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function ROS_clear(app)
+                        
+            app.logINFO('ROS_CLEAR -1'); drawnow;
+            if isfield(app.ros_handles,'sub_calib_data')
+                app.ros_handles.sub_calib_data = [];
+            end
+            app.logINFO('ROS_CLEAR 0'); drawnow;
+            if isfield(app.ros_handles,'ss_ping')
+                app.ros_handles.ss_ping.delete;
+            end
+            app.logINFO('ROS_CLEAR 1'); drawnow;
+            if isfield(app.ros_handles,'ss_run_enabled')
+                app.ros_handles.ss_run_enabled.delete;
+            end
+            app.logINFO('ROS_CLEAR 2'); drawnow;
+            if isfield(app.ros_handles,'ss_save')
+                app.ros_handles.ss_save.delete;
+            end
+            app.logINFO('ROS_CLEAR 3'); drawnow;
+            if isfield(app.ros_handles,'ss_get_next_point')
+                app.ros_handles.ss_get_next_point.delete;
+            end
+            app.logINFO('ROS_CLEAR 4'); drawnow;
+            if isfield(app.ros_handles,'sub_status')
+                app.ros_handles.sub_status.delete;
+            end
+            app.logINFO('ROS_CLEAR 5'); drawnow;
+            if isfield(app.ros_handles,'pub_abort')
+                app.ros_handles.pub_abort.delete;
+            end
+            
+            app.logINFO('ROS_CLEAR node'); drawnow;
+            if isfield(app.ros_handles,'node')
+                app.ros_handles.node.delete;
+            end
+
+            app.logINFO('ROS_CLEAR handles'); drawnow;
+            app.ros_handles = [];
+            app.logINFO('ROS_CLEAR END'); drawnow;
+        end
+        
+        function ROS_init_mode_robot(app)
+            % Init the ROS NODE for the robot mode
+            
+            app.logINFO("ROS_initModeRobot...");
+            
+            %check if node already active
+            if ~isempty(app.ros_handles)
+                yes = app.GUI_displayWarnYN('init ROS','Node active, reinit?');
+                if yes
+                    app.ROS_clear()
+                else
+                    return
+                end
+            end
+
+            app.ros_handles.node = ros.Node('matlab_calib_gui');
+            
+            app.ros_handles.ss_ping = ros.ServiceServer(app.ros_handles.node, 'matlab_gui/ping', 'std_srvs/Empty', @(SRC, REQMSG, DEFAULTRESPMSG)app.ROS_ping_service_cb(SRC, REQMSG, DEFAULTRESPMSG));
+            
+            app.ros_handles.ss_run_enabled = ros.ServiceServer(app.ros_handles.node, 'matlab_gui/run_enabled', 'sun_tactile_calibration/GetBool', @(SRC, REQMSG, DEFAULTRESPMSG)app.ROS_run_enabled_service_cb(SRC, REQMSG, DEFAULTRESPMSG));
+            
+            app.ros_handles.ss_save = ros.ServiceServer(app.ros_handles.node, 'matlab_gui/save', 'std_srvs/Empty', @(SRC, REQMSG, DEFAULTRESPMSG)app.ROS_save_service_cb(SRC, REQMSG, DEFAULTRESPMSG));
+            
+            app.ros_handles.ss_get_next_point = ros.ServiceServer(app.ros_handles.node, 'matlab_gui/get_next_point', 'sun_tactile_calibration/GetNextCalibPoint', @(SRC, REQMSG, DEFAULTRESPMSG)app.ROS_get_next_calib_point_service_cb(SRC, REQMSG, DEFAULTRESPMSG));
+                                 
+            app.ros_handles.sub_status = ros.Subscriber(app.ros_handles.node,'status','std_msgs/String',@(src,msg)app.ROS_status_topic_cb(src,msg),'BufferSize',1);
+            
+            app.ros_handles.pub_abort = ros.Publisher(app.ros_handles.node, 'abort_trigger', 'std_msgs/Empty', 'IsLatching', true);
+            
+            app.logDBG("ROS_initModeRobot DONE");
+        end
+        
+        function response = ROS_ping_service_cb(app, SRC, REQMSG, response) %#ok<INUSL> 
+            app.logDBG0("Ping request!")
+        end
+        
+        function response = ROS_run_enabled_service_cb(app, SRC, REQMSG, response) %#ok<INUSL> 
+            response.Data = strcmp(app.switch_run.Value,'On');
+        end
+        
+        function response = ROS_save_service_cb(app, SRC, REQMSG, response) %#ok<INUSL> 
+            app.saveProject();
+        end        
+        
+        function response = ROS_get_next_calib_point_service_cb(app, SRC, REQMSG, response) %#ok<INUSL> 
+
+            reinit_needed = false;
+            b_finish = false;
+            if REQMSG.BIncrement
+                [reinit_needed, b_finish] = app.F_increment_calib_index();
+            end
+            if b_finish
+                response.BFinish = true;
+                return;
+            end
+            response.BFinish = false;
+            response.ReinitNeeded = reinit_needed;
+            response.Theta = app.projectData.robot_calib_data.theta_v(app.projectData.robot_calib_data.i_theta);
+            response.Phi = app.projectData.robot_calib_data.phi_v(app.projectData.robot_calib_data.i_phi);
+            fn = app.projectData.robot_calib_data.fn_v(app.projectData.robot_calib_data.i_fn);
+            response.Rho = app.projectData.finger_info.silicon_sphere_radius;
+            wrench = app.projectData.robot_calib_data.wrench_v{app.projectData.robot_calib_data.i_fn}(:,app.projectData.robot_calib_data.i_wrench);
+            
+            response.Wrench.Force.X = wrench(1);
+            response.Wrench.Force.Y = wrench(2);
+            response.Wrench.Force.Z = fn;
+            response.Wrench.Torque.X = 0;
+            response.Wrench.Torque.Y = 0;
+            response.Wrench.Torque.Z = wrench(3);
+            
+            app.GUI_update_calib_robot_status();
+            
+        end      
+        
+        function ROS_abort(app)
+            % Call the abort server
+            app.logERR("ROS_ABORT");
+            app.ros_handles.pub_abort.send(app.ros_handles.pub_abort.rosmessage);
+        end
+        
+        function ROS_status_topic_cb(app,src,msg) %#ok<INUSL> 
+            if strcmp(app.switch_run.Value,'On') && strcmp(msg.Data,'STATUS_CONTACT')
+                app.ROS_activate_calib_data_subscriber();
+            else
+                app.ROS_deactivate_calib_data_subscriber();
+            end
+            app.GUI_update_status(msg.Data);
+        end
+                
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % ROS calib data subscriber
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function ROS_activate_calib_data_subscriber(app)
+            % Activate the LOCAL calib subscriber
+            %sun_tactile_calibration/TactileCalibration
+            app.logDBG('Activating the calib subscriber...');
+            app.ros_handles.sub_calib_data = ros.Subscriber(app.ros_handles.node,'calib_data','sun_tactile_calibration/TactileCalibration',@(src,msg)app.ROS_calib_data_cb(src,msg),'BufferSize',1);
+            app.logDBG('Calib subscriber Activated!');
+        end
+        
+        function ROS_deactivate_calib_data_subscriber(app)
+            % Deactivate the LOCAL calib subscriber
+            app.logDBG('Dectivating the calib subscriber...');
+            app.ros_handles.sub_calib_data = [];
+            app.logDBG('Calib subscriber Deactivated!');
+        end
+        
+        function ROS_calib_data_cb(app,src,msg) %#ok<INUSL> 
+            % callback triggered on new calib sample received
+            time_wrench = msg.Wrench.Header.Stamp.seconds;
+            wrench = [
+                msg.Wrench.Wrench.Force.X;
+                msg.Wrench.Wrench.Force.Y;
+                msg.Wrench.Wrench.Force.Z;
+                msg.Wrench.Wrench.Torque.X;
+                msg.Wrench.Wrench.Torque.Y;
+                msg.Wrench.Wrench.Torque.Z;
+            ];
+        
+            time_tactile_raw = msg.TactileRaw.Header.Stamp.seconds;
+            tactile_raw = msg.TactileRaw.Tactile.Data;
+            
+            time_tactile_rect = msg.TactileRect.Header.Stamp.seconds;
+            tactile_rect = msg.TactileRect.Tactile.Data;
+            
+            time_pose = msg.RobotPose.Header.Stamp.seconds;
+            pose = [msg.RobotPose.Pose.Position.X;
+                   msg.RobotPose.Pose.Position.Y;
+                   msg.RobotPose.Pose.Position.Z;
+                   msg.RobotPose.Pose.Orientation.X;
+                   msg.RobotPose.Pose.Orientation.Y;
+                   msg.RobotPose.Pose.Orientation.Z;
+                   msg.RobotPose.Pose.Orientation.W
+                   ];                 
+            
+            
+            if app.projectData.gui_data.calib_mode == 2 %robot
+                update_gui = app.checkBox_update_gui.Value;
+            else
+                update_gui = true;
+            end
+            
+            app.F_receiveCalibData( ...
+                update_gui, ...
+                time_wrench,wrench,...
+                time_tactile_raw,tactile_raw(:),...
+                time_tactile_rect,tactile_rect(:),...
+                time_pose, pose);
+        end
+        
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%% GUI METHODS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function GUI_clearAll(app)
+            % Clear everithing except the LOG
+            % Go in the initial state with NO DATA
+            app.logDBG("clearAll...");
+            
+            %clear ax
+            cla(app.axes_fx_fy);
+            cla(app.axes_fx_tau);
+            cla(app.axes_tau_fy);
+            cla(app.axes_3d);
+            cla(app.axes_centroid);
+            
+            %clear dropdown
+            app.dropDown_fn_interval.Items = {};
+            app.dropDown_fn_interval.ItemsData = [];
+            app.dropDown_zone.Items = {};
+            app.dropDown_zone.ItemsData = [];
+            
+            % slider to 1
+            app.slider_plot_radius.Value = 1;
+            
+            app.logDBG("clearAll DONE");
+            
+        end
+        
+        function yes = GUI_displayWarnYN(app, title,msg)
+            % Display a warning dialog YN
+            % return true if yes
+            app.logDBG0("displayWarnYN...");
+            selection = uiconfirm(app.FingerCalibrationUIFigure,...
+                msg,title,...
+                'Icon','warning');
+            yes = strcmp(selection,'OK');
+            app.logDBG0("displayWarnYN DONE");
+        end
+        
+        function GUI_displayWarn(app,title,msg, b_wait)
+            % Display a warning dialog
+            
+            if nargin < 4
+                b_wait = true;
+            end
+            
+            app.logDBG0("displayWarn...");
+            if b_wait
+            selection = uiconfirm(app.FingerCalibrationUIFigure,...
+                msg,title,...
+                'Icon','warning',...
+                'Options',{'Ok'}); %#ok<NASGU> 
+            else
+                uialert(app.FingerCalibrationUIFigure,msg,title,...
+                         'Icon','warning');
+            end
+            
+            app.logDBG0("displayWarn DONE");
+        end
+        
+        function GUI_refreshAll(app)
+            % refresh all the gui
+            app.logDBG0('refreshAll...');
+            app.GUI_clearAll();
+            app.GUI_drawBasic();
+            app.GUI_refreshMinimal();
+            app.logDBG0('refreshAll DONE');
+        end
+        
+        function GUI_clearPlottedHandles(app)
+            %destroy all plotted samples in axes
+            app.dyn_handles.ax_fx_fy.h_samples.clearpoints();
+            app.dyn_handles.ax_fx_fy.h_buffer_samples.XData(:) = nan;
+            app.dyn_handles.ax_fx_fy.h_buffer_samples.YData(:) = nan;
+               
+            app.dyn_handles.ax_fx_tau.h_samples.clearpoints();
+            app.dyn_handles.ax_fx_tau.h_buffer_samples.XData(:) = nan;
+            app.dyn_handles.ax_fx_tau.h_buffer_samples.YData(:) = nan;
+              
+            app.dyn_handles.ax_tau_fy.h_samples.clearpoints();
+            app.dyn_handles.ax_tau_fy.h_buffer_samples.XData(:) = nan;
+            app.dyn_handles.ax_tau_fy.h_buffer_samples.YData(:) = nan;
+            
+            app.dyn_handles.ax_3d.h_samples.clearpoints();
+            app.dyn_handles.ax_3d.h_buffer_samples.XData(:) = nan;
+            app.dyn_handles.ax_3d.h_buffer_samples.YData(:) = nan;
+            app.dyn_handles.ax_3d.h_buffer_samples.ZData(:) = nan;
+            
+            app.dyn_handles.ax_centroid.h_centroid_point.XData = nan;
+            app.dyn_handles.ax_centroid.h_centroid_point.YData = nan;
+            app.dyn_handles.ax_centroid.h_centroid_point.ZData = 1;
+            
+            app.dyn_handles.ax_fx_fy.h_last_sample.clearpoints();
+            app.dyn_handles.ax_fx_tau.h_last_sample.clearpoints();
+            app.dyn_handles.ax_tau_fy.h_last_sample.clearpoints();
+
+        end
+        
+        function GUI_updateLabelTotSamples(app)
+            %Update the label TOT Samples
+            tot = 0;
+            for i=1:numel(app.projectData.calib_data.wrench_cell)
+                tot = tot + size(app.projectData.calib_data.wrench_cell{i},2);
+            end
+            app.label_tot_samples.Text = num2str(tot);
+        end
+        
+        function GUI_refreshMinimal(app)
+            % refresh only things that change a lot
+            
+            app.logDBG0('refreshMinimal...');
+            
+            app.gui_refresh_countdown = app.projectData.gui_data.dim_sample_buffer;
+            
+            %what i should plot?
+            index_fn_interval = app.dropDown_fn_interval.Value.index;
+            index_zone = app.dropDown_zone.Value.index;
+            
+            %select target to plot
+            wrenches_plot = app.projectData.calib_data.plot_data.wrench_plot_cell{index_zone,index_fn_interval};
+            
+            %destroy the plotted handles
+            app.GUI_clearPlottedHandles();
+            
+            %update total samples
+            app.GUI_updateLabelTotSamples();
+            
+            if isempty(wrenches_plot)
+                %nothing to plot
+                app.label_this_samples.Text = '0';
+                return
+            end
+            
+            %update label this samples
+            app.label_this_samples.Text = num2str(size(wrenches_plot,2));
+            
+            %index of samples to plot
+            if app.slider_plot_radius.Value == 0
+                plotIndex = 1:size(wrenches_plot,2);
+            else
+                plotIndex = sqrt( sum(wrenches_plot.^2)  ) < app.slider_plot_radius.Value;
+            end
+            if( ~any(plotIndex) )
+                %nothing to plot
+                return
+            end
+            
+            %PLOT!
+            app.dyn_handles.ax_fx_fy.h_samples.addpoints(wrenches_plot(1,plotIndex),wrenches_plot(2,plotIndex));
+            
+            app.dyn_handles.ax_fx_tau.h_samples.addpoints(wrenches_plot(1,plotIndex),wrenches_plot(3,plotIndex));
+            
+            app.dyn_handles.ax_tau_fy.h_samples.addpoints(wrenches_plot(3,plotIndex),wrenches_plot(2,plotIndex));
+            
+            app.dyn_handles.ax_3d.h_samples.addpoints(wrenches_plot(1,plotIndex),wrenches_plot(2,plotIndex),wrenches_plot(3,plotIndex));
+            
+            app.logDBG0('refreshMinimal DONE');
+        end
+        
+        function GUI_plotCentroid(app, centroid, zone_index)
+            % update the centroid axes using the value of centroid
+            app.logDBG0('plotCentroid...')
+            
+            app.dyn_handles.ax_centroid.h_centroid_point.XData = centroid(1);
+            app.dyn_handles.ax_centroid.h_centroid_point.YData = centroid(2);
+
+            %Update zone color
+            if nargin < 3
+                zone_index = nan;
+            end
+            for i=1:app.dependent_data.num_zones
+                if(i == zone_index)      
+                    set(app.dyn_handles.ax_centroid.h_zone(i), 'Color' , [0 1 0]);
+                else
+                    set(app.dyn_handles.ax_centroid.h_zone(i), 'Color' , [1 0 0]);
+                end
+            end
+            
+            app.logDBG0('plotCentroid DONE')
+        end
+        
+        function GUI_drawBasic(app)
+            % Draw the basic structure of the plots
+            % axes must be cleared before
+            % (grid Limit surface etc...)
+            app.logDBG0('drawBasic...')
+            
+            if app.projectData.gui_data.calib_mode == 2 %MODE_ROBOT
+                app.GridLayoutRobotCalibTab.Visible = true;
+                app.GUI_update_calib_robot_status();
+            else
+                app.GridLayoutRobotCalibTab.Visible = false;
+            end
+            
+            nan_buffer = nan(1,app.projectData.gui_data.dim_sample_buffer);
+            
+            %plot wrench fx_fy
+            drawCircle( app.axes_fx_fy, 1 );
+            hold(app.axes_fx_fy,'on');
+            %destroy prev
+            app.dyn_handles.ax_fx_fy = struct;
+            app.dyn_handles.ax_fx_fy.h_last_sample = animatedline(app.axes_fx_fy,'Color','b','LineStyle','none','Marker','*','MaximumNumPoints',1);
+            app.dyn_handles.ax_fx_fy.h_samples = animatedline(app.axes_fx_fy,'Color','r','LineStyle','none','Marker','*','MaximumNumPoints',inf);
+            app.dyn_handles.ax_fx_fy.h_buffer_samples = plot(app.axes_fx_fy,nan_buffer,nan_buffer,'Color','r','LineStyle','none','Marker','*');
+            hold(app.axes_fx_fy,'off');
+            axis(app.axes_fx_fy,'square');
+            
+            %plot wrench fx_tau
+            drawCircle( app.axes_fx_tau, 1 );
+            hold(app.axes_fx_tau,'on');
+            %destroy prev
+            app.dyn_handles.ax_fx_tau = struct;
+            app.dyn_handles.ax_fx_tau.h_last_sample = animatedline(app.axes_fx_tau,'Color','b','LineStyle','none','Marker','*','MaximumNumPoints',1);
+            app.dyn_handles.ax_fx_tau.h_samples = animatedline(app.axes_fx_tau,'Color','r','LineStyle','none','Marker','*','MaximumNumPoints',inf);
+            app.dyn_handles.ax_fx_tau.h_buffer_samples = plot(app.axes_fx_tau,nan_buffer,nan_buffer,'Color','r','LineStyle','none','Marker','*');
+            hold(app.axes_fx_tau,'off');
+            axis(app.axes_fx_tau,'square');
+            
+            %plot wrench tau_fy
+            drawCircle( app.axes_tau_fy, 1 );
+            hold(app.axes_tau_fy,'on');
+            %destroy prev
+            app.dyn_handles.ax_tau_fy = struct;
+            app.dyn_handles.ax_tau_fy.h_last_sample = animatedline(app.axes_tau_fy,'Color','b','LineStyle','none','Marker','*','MaximumNumPoints',1);
+            app.dyn_handles.ax_tau_fy.h_samples = animatedline(app.axes_tau_fy,'Color','r','LineStyle','none','Marker','*','MaximumNumPoints',inf);
+            app.dyn_handles.ax_tau_fy.h_buffer_samples = plot(app.axes_tau_fy,nan_buffer,nan_buffer,'Color','r','LineStyle','none','Marker','*');
+            hold(app.axes_tau_fy,'off');
+            axis(app.axes_tau_fy,'square');            
+            
+            %plot wrench 3d
+            drawUnitSphere( app.axes_3d );
+            hold(app.axes_3d,'on');
+            app.dyn_handles.ax_3d.h_samples = animatedline(app.axes_3d,'Color','r','LineStyle','none','Marker','*','MaximumNumPoints', inf);
+            app.dyn_handles.ax_3d.h_buffer_samples = plot(app.axes_3d,nan_buffer,nan_buffer,'Color','r','LineStyle','none','Marker','*');
+            hold(app.axes_3d,'off');
+            axis( app.axes_3d, 'square');
+            zlabel(app.axes_3d, '\tau_z');
+            
+            %plot centroid
+            app.GUI_drawBasic_centroid();
+            
+            %dropDowns
+            app.dropDown_zone.Items = {};
+            app.dropDown_zone.ItemsData = {};
+            for i = 1:app.dependent_data.num_zones
+                app.dropDown_zone.Items{i} = num2str(i);
+                app.dropDown_zone.ItemsData{i} = struct('index',i);
+            end
+            app.dropDown_fn_interval.Items = {};
+            app.dropDown_fn_interval.ItemsData = {};
+            for i =1:(length(app.projectData.calib_data.fn_intervals)-1)
+                app.dropDown_fn_interval.Items{i} = [num2str(app.projectData.calib_data.fn_intervals(i)) ' - ' num2str(app.projectData.calib_data.fn_intervals(i+1)) ];
+                app.dropDown_fn_interval.ItemsData{i} = struct('index',i,'interval',[app.projectData.calib_data.fn_intervals(i) app.projectData.calib_data.fn_intervals(i+1)]);
+            end
+            
+            app.slider_plot_radius.Value = 1;
+           
+            app.logDBG0('drawBasic DONE')
+        end
+        
+        function GUI_drawBasic_centroid(app)
+            % Draw the basic structure of the plots
+            % axes must be cleared before
+            % (grid Limit surface etc...)
+            app.logDBG0('drawBasic_centroid...')
+            
+            %destroy previous handles
+            app.dyn_handles.ax_centroid = struct;
+            %plot circles
+            hold(app.axes_centroid,'on')
+            for i = 1:length(app.projectData.calib_data.zone_radius_intervals)
+                drawCircle( app.axes_centroid, app.projectData.calib_data.zone_radius_intervals(i));
+            end
+            %Plot Lines
+            for angle = app.projectData.calib_data.zone_angle_bound_lines 
+                plotLinePolar( ...
+                    app.axes_centroid, ...
+                    [app.projectData.calib_data.zone_radius_intervals(1) app.projectData.calib_data.zone_radius_intervals(end)], ...
+                    angle*ones(1,2) ...
+                    );
+            end
+            %Plot numbers
+            i = 1;
+            app.dyn_handles.ax_centroid.h_zone(i) = plot(app.axes_centroid,0,0,'rs','MarkerSize',30,'LineWidth',5);
+            text(app.axes_centroid,0,0,num2str(i),'FontSize',20,'HorizontalAlignment','center');
+            for radii = app.dependent_data.zone_radius_centers
+                for angle = app.dependent_data.zone_angle_center_lines
+                    i = i+1;
+                    [x,y] = pol2cart(angle,radii);
+                    app.dyn_handles.ax_centroid.h_zone(i) = plot(app.axes_centroid,x,y,'rs','MarkerSize',30,'LineWidth',5);
+                    text(app.axes_centroid,x,y,num2str(i),'FontSize',20,'HorizontalAlignment','center')
+                end
+            end
+            app.dyn_handles.ax_centroid.h_centroid_point = plot(app.axes_centroid, nan, nan, 'Color','b','LineStyle','none','Marker','*');
+            app.dyn_handles.ax_centroid.h_centroid_point.ZData = 1;
+            hold(app.axes_centroid,'off')
+            axis(app.axes_centroid, ...
+                [app.projectData.finger_info.taxels_x_coords(1)*1.2 app.projectData.finger_info.taxels_x_coords(end)*1.2 ...
+                app.projectData.finger_info.taxels_y_coords(end)*1.2 app.projectData.finger_info.taxels_y_coords(1)*1.2] ...
+                )
+            axis(app.axes_centroid, 'square')
+            app.logDBG0('drawBasic_centroid DONE')
+        end
+        
+        function GUI_plotSingleSample(app, target_norm)
+            % Plot a single point to the axes
+            % target norm must be already normalized
+            app.logDBG0('plotSinglePoint...')
+            
+            if app.gui_refresh_countdown <= 0
+                app.GUI_refreshMinimal();
+            else
+                
+                %disp([' app.gui_refresh_countdown = ' num2str(app.gui_refresh_countdown)])
+            
+                app.dyn_handles.ax_fx_fy.h_buffer_samples.XData(app.gui_refresh_countdown) = target_norm(1);
+                app.dyn_handles.ax_fx_fy.h_buffer_samples.YData(app.gui_refresh_countdown) = target_norm(2);
+                
+                app.dyn_handles.ax_fx_tau.h_buffer_samples.XData(app.gui_refresh_countdown) = target_norm(1);
+                app.dyn_handles.ax_fx_tau.h_buffer_samples.YData(app.gui_refresh_countdown) = target_norm(3);
+                
+                app.dyn_handles.ax_tau_fy.h_buffer_samples.XData(app.gui_refresh_countdown) = target_norm(3);
+                app.dyn_handles.ax_tau_fy.h_buffer_samples.YData(app.gui_refresh_countdown) = target_norm(2);
+                
+                app.dyn_handles.ax_3d.h_buffer_samples.XData(app.gui_refresh_countdown) = target_norm(1);
+                app.dyn_handles.ax_3d.h_buffer_samples.YData(app.gui_refresh_countdown) = target_norm(2);
+                app.dyn_handles.ax_3d.h_buffer_samples.ZData(app.gui_refresh_countdown) = target_norm(3);
+                
+                app.gui_refresh_countdown = app.gui_refresh_countdown - 1;
+
+            end
+            app.logDBG0('plotSinglePoint DONE')
+            app.GUI_updateLastSample(target_norm);
+        end
+        
+        function GUI_updateLastSample(app, target_norm)
+            % Update the last point plotted
+            % i.e. the point that represent the last sample
+            app.logDBG0('updateLastPoint...')
+            
+            app.dyn_handles.ax_fx_fy.h_last_sample.addpoints(target_norm(1),target_norm(2),1);
+            
+            app.dyn_handles.ax_fx_tau.h_last_sample.addpoints(target_norm(1),target_norm(3),1);   
+            
+            app.dyn_handles.ax_tau_fy.h_last_sample.addpoints(target_norm(3),target_norm(2),1);     
+            
+            app.logDBG0('updateLastPoint DONE')
+        end
+        
+        function GUI_update_calib_robot_status(app)
+            
+            app.label_wrench.Text = [ num2str(app.projectData.robot_calib_data.i_wrench) '/' num2str(size(app.projectData.robot_calib_data.wrench_v{app.projectData.robot_calib_data.i_fn},2)) ];
+
+            app.label_fn.Text = [ num2str(app.projectData.robot_calib_data.i_fn) '/' num2str(length(app.projectData.robot_calib_data.fn_v)) ];
+            
+            app.label_phi.Text = [ num2str(app.projectData.robot_calib_data.i_phi) '/' num2str(length(app.projectData.robot_calib_data.phi_v)) ];
+            
+            app.label_theta.Text = [ num2str(app.projectData.robot_calib_data.i_theta) '/' num2str(length(app.projectData.robot_calib_data.theta_v)) ];
+          
+        end
+        
+        function GUI_update_status(app, in_status)
+            app.label_status.Text = in_status;
+            switch in_status
+                case {'STATUS_STOPPED','STATUS_0','STATUS_INITIAL_POSITION'}
+                    app.lamp_status.Color = 'r';
+                case {'STATUS_CONTACT'}
+                    app.lamp_status.Color = 'g';
+                otherwise
+                    app.lamp_status.Color = 'y';
+            end
+        end
+        
+        function GUI_setVisble(app, value)
+            app.gridLayout_main_grid.Visible = value;
+            app.FileMenu.Visible = value;
+            app.ToolMenu.Visible = value;
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%% RUN METHODS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        function F_abort(app)
+            switch app.projectData.gui_data.calib_mode
+                case 0
+                    app.logERR('mode NONE')
+                    app.GUI_displayWarn('ERROR', 'mode NONE')
+                    return
+                case 1
+                    app.logDBG('mode HAND')
+                    app.GUI_displayWarn('ERROR', 'MODE HAND NOT IMPLEMENTED!')
+                    return
+                case 2
+                    app.logDBG('mode ROBOT')
+                    app.ROS_abort();
+                otherwise
+                    app.logERR(['Invalid calibration mode!' num2str(app.projectData.gui_data.calib_mode)])
+                    app.GUI_displayWarn('ERROR', ['Invalid calibration mode!' num2str(app.projectData.gui_data.calib_mode)])
+                return
+            end
+        end
+        
+        function [reinit_needed,b_finish] = F_increment_calib_index(app)
+            reinit_needed = false;
+            b_finish = false;
+            
+            if app.projectData.robot_calib_data.i_theta > length(app.projectData.robot_calib_data.theta_v)
+                b_finish = true;
+                app.GUI_displayWarn("END","NO MORE POINTS...", false);
+                app.logINFO("F_increment_calib_index - END");
+                return;
+            end
+            
+            app.projectData.robot_calib_data.i_wrench = app.projectData.robot_calib_data.i_wrench + 1;
+            if app.projectData.robot_calib_data.i_wrench > size(app.projectData.robot_calib_data.wrench_v{app.projectData.robot_calib_data.i_fn},2)
+                reinit_needed = true; % <- needs to dismiss the contact
+                app.projectData.robot_calib_data.i_wrench = 1;
+                app.projectData.robot_calib_data.i_fn = app.projectData.robot_calib_data.i_fn + 1;
+                if app.projectData.robot_calib_data.i_fn > length(app.projectData.robot_calib_data.fn_v)
+                    app.projectData.robot_calib_data.i_fn = 1;
+                    app.projectData.robot_calib_data.i_phi = app.projectData.robot_calib_data.i_phi + 1;
+                    if app.projectData.robot_calib_data.i_phi > length(app.projectData.robot_calib_data.phi_v)
+                        app.projectData.robot_calib_data.i_phi = 1;
+                        app.projectData.robot_calib_data.i_theta = app.projectData.robot_calib_data.i_theta + 1;
+                        if app.projectData.robot_calib_data.i_theta > length(app.projectData.robot_calib_data.theta_v)
+                            b_finish = true;
+                            app.saveProject();
+                            app.GUI_displayWarn("END","NO MORE POINTS...", false);
+                            app.logINFO("F_increment_calib_index - END");
+                            return;
+                        end
+                    end
+                end
+            end
+            % SPECIAL CASE: wrench_v is empty
+            if isempty(app.projectData.robot_calib_data.wrench_v{app.projectData.robot_calib_data.i_fn})
+                app.logWARN("wrench_v is empty");
+                app.F_increment_calib_index();
+                return;
+            end
+            theta = app.projectData.robot_calib_data.theta_v(app.projectData.robot_calib_data.i_theta);
+            phi = app.projectData.robot_calib_data.phi_v(app.projectData.robot_calib_data.i_phi);
+            if (theta == 0) && (phi~=0)
+                app.logWARN("theta=0 and phi!=0");
+                app.projectData.robot_calib_data.i_wrench = 1;
+                app.projectData.robot_calib_data.i_fn = 1;
+                app.projectData.robot_calib_data.i_phi = 1;
+                app.projectData.robot_calib_data.i_theta = app.projectData.robot_calib_data.i_theta + 1;
+            end
+        end
+        
+        
+        function F_receiveCalibData( app,...
+                update_gui, ...
+                time_wrench,wrench,...
+                time_tactile_raw,tactile_raw,...
+                time_tactile_rect,tactile_rect,...
+                time_pose, pose)
+            % Receive a calib data sample
+            % check if sample is good
+            % update the gui and store the sample
+            
+            if app.projectData.gui_data.calib_mode == 1 %MODE_HAND
+                % check the minimum fz
+                if abs(wrench(3)) < app.projectData.gui_data.min_fz
+                    return; %do not consider the sample
+                end
+            end
+            
+            % if fn too high discard sample
+            if abs(wrench(3)) >  app.projectData.calib_data.fn_intervals(end)
+                return; %fn too high
+            end
+            
+            %compute centroid
+            if app.projectData.gui_data.calib_mode == 1 %MODE_HAND
+                centroid = compute_centroid( ...
+                    tactile_rect,...
+                    app.projectData.finger_info.taxels_x_coords,...
+                    app.projectData.finger_info.taxels_y_coords,...
+                    app.projectData.finger_info.broken_cells);
+            else
+                centroid = pose(1:2);
+            end
+            
+            %find zone index
+            zone_index = find_geometric_zone(...
+                centroid,...
+                app.projectData.calib_data.zone_angle_bound_lines, ...
+                app.projectData.calib_data.zone_radius_intervals);
+            
+            %if invlaid zone discard sample
+            if isnan(zone_index)
+                return; %bad zone
+            end
+            
+            %if here I have to save the point
+            
+            %find fn index
+            fn_index = find_interval(app.projectData.calib_data.fn_intervals,abs(wrench(3)));
+            
+            %compute the plot point
+            wrench_plot_point = compute_wrench_plot_point(...
+                wrench,...
+                app.dependent_data.fn_intervals_centers(fn_index),...
+                app.dependent_data.zone_central_transforms{zone_index},...
+                app.projectData.calib_data.plot_data.mu,...
+                app.projectData.calib_data.plot_data.alpha,...
+                app.projectData.calib_data.plot_data.gamma...
+            );
+            
+            %Save point
+            app.projectData.calib_data.time_voltage_rect_cell{zone_index,fn_index}(:,end+1) = time_tactile_rect;
+            app.projectData.calib_data.voltage_rect_cell{zone_index,fn_index}(:,end+1) = tactile_rect;
+            
+            app.projectData.calib_data.time_voltage_raw_cell{zone_index,fn_index}(:,end+1) = time_tactile_raw;
+            app.projectData.calib_data.voltage_raw_cell{zone_index,fn_index}(:,end+1) = tactile_raw;
+            
+            app.projectData.calib_data.time_wrench_cell{zone_index,fn_index}(:,end+1) = time_wrench;
+            app.projectData.calib_data.wrench_cell{zone_index,fn_index}(:,end+1) = wrench;
+            
+            app.projectData.calib_data.time_pose_cell{zone_index,fn_index}(:,end+1) = time_pose;
+            app.projectData.calib_data.pose_cell{zone_index,fn_index}(:,end+1) = pose;
+            
+            app.projectData.calib_data.plot_data.wrench_plot_cell{zone_index,fn_index}(:,end+1) = wrench_plot_point;
+            
+            %Update visual-single point
+            b_sample_in_view = zone_index == app.dropDown_zone.Value.index && fn_index == app.dropDown_fn_interval.Value.index;
+            if update_gui
+                b_plot = app.slider_plot_radius.Value == 0 || (sqrt( sum(wrench_plot_point.^2)  ) < app.slider_plot_radius.Value);
+                b_plot = b_plot && b_sample_in_view;
+                if  b_plot
+                    app.GUI_plotSingleSample(wrench_plot_point);  
+                end
+            end
+            app.GUI_plotCentroid(centroid,zone_index);
+            
+            if b_sample_in_view
+                app.label_this_samples.Text = num2str( str2double(app.label_this_samples.Text) +1 );
+            end
+            app.label_tot_samples.Text = num2str( str2double(app.label_tot_samples.Text) +1 );
+            
+        end
+        
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app)
+            %Set the LOG LEVEL
+            app.log_level = 2; %INFO
+            app.logINFO("Start");
+            %First update the matlab path
+            app.updatePath();
+            %Clear everithing except the log
+            app.GUI_clearAll();
+            app.logDBG("Start END");
+        end
+
+        % Close request function: FingerCalibrationUIFigure
+        function FingerCalibrationUIFigureCloseRequest(app, event)
+            
+            if ~app.GUI_displayWarnYN('Close', 'Close the app, are you sure?')
+                return
+            end
+            
+            % TODO Clear stuff!
+            % ROS stuff, timers, and vars
+            app.ROS_clear();
+            
+            if ~isempty(app.called_app)
+                delete(app.called_app)
+            end
+        
+            delete(app)
+        end
+
+        % Menu selected function: NewMenu
+        function NewMenuSelected(app, event)
+            % File->New...
+            % Ask for the new file location
+            app.logDBG("NewMenuSelected...");
+            if ~isempty(app.projectData)
+                app.logDBG("Project Present");
+                if ~app.GUI_displayWarnYN('Project Already Present','Project already loaded, delete unsaved data?')
+                     app.logDBG("Project Present - Dismiss");
+                    return
+                end
+                app.logDBG("Project Present - Continue");
+            end
+            filter = {'*.mat','MATLAB Files (*.mat)'};
+            title = 'Select a NEW File';
+            defname = 'FINGER_ID.mat';
+            [file,path,indx] = uiputfile(filter,title,defname); %#ok<ASGLU> 
+            if file
+                full_path = [path file];
+                app.logINFO(['New File Selected ' full_path]);
+                app.newProject(full_path);
+            end
+            
+        end
+
+        % Menu selected function: LoadMenu
+        function LoadMenuSelected(app, event)
+            %File->Load...
+            % Ask for the new file location
+            app.logDBG("LoadMenuSelected...");
+            if ~isempty(app.projectData)
+                app.logDBG("Project Present");
+                if ~app.GUI_displayWarnYN('Project Already Present','Project already loaded, delete unsaved data?')
+                     app.logDBG("Project Present - Dismiss");
+                    return
+                end
+                app.logDBG("Project Present - Continue");
+            end
+            filter = {'*.mat','MATLAB Files (*.mat)'};
+            title = 'Select a project file File';
+            defname = 'FINGER_ID.mat';
+            [file,path,indx] = uigetfile(filter,title,defname); %#ok<ASGLU> 
+            if file
+                full_path = [path file];
+                app.logINFO(['File Selected ' full_path]);
+                app.loadProject(full_path);
+            end
+        end
+
+        % Menu selected function: initROSMenu
+        function initROSMenuSelected(app, event)
+            app.logDBG('initROSMenuSelected...')
+            
+            if isempty(app.projectData)
+                app.logERR('load/create a project first')
+                app.GUI_displayWarn('ERROR', 'load/create a project first')
+                return
+            end
+            
+            try
+                switch app.projectData.gui_data.calib_mode
+                    case 0
+                        app.logERR('mode NONE')
+                        app.GUI_displayWarn('ERROR', 'mode NONE')
+                        return
+                    case 1
+                        app.logINFO('mode HAND')
+                        app.GUI_displayWarn('ERROR', 'MODE HAND NOT IMPLEMENTED!')
+                        return
+                    case 2
+                        app.logINFO('mode ROBOT')
+                        app.GUI_displayWarn('INFO', 'MODE ROBOT!')
+                        app.ROS_init_mode_robot()
+                    otherwise
+                        app.logERR(['Invalid calibration mode!' num2str(app.projectData.gui_data.calib_mode)])
+                        app.GUI_displayWarn('ERROR', ['Invalid calibration mode!' num2str(app.projectData.gui_data.calib_mode)])
+                        return
+                end
+                app.GUI_displayWarn('ROS INIT','Ros Init OK')
+                app.logDBG('initROSMenuSelected END')
+                
+            catch ME
+                switch ME.identifier
+                    case 'ros:mlros:serviceclient:ConnectWaitTimeout'
+                        app.GUI_displayWarn('ERROR', 'Timeout In Init ROS')
+                        app.ROS_clear();
+                    otherwise
+                        rethrow(ME)
+                end
+            end
+            
+            
+        end
+
+        % Menu selected function: stopROSMenu
+        function stopROSMenuSelected(app, event)
+            app.logDBG('Stopping ROS...')
+            app.ROS_clear();
+            app.logDBG('Stopping DONE!')
+            app.GUI_displayWarn('INFO', 'ROS STOPPED')
+        end
+
+        % Value changed function: dropDown_fn_interval, 
+        % dropDown_zone, slider_plot_radius
+        function slider_plot_radiusValueChanged(app, event)
+            app.GUI_refreshMinimal();
+        end
+
+        % Button pushed function: ABORTButton
+        function ABORTButtonPushed(app, event)
+            app.F_abort();
+        end
+
+        % Menu selected function: SavewithNameMenu
+        function SavewithNameMenuSelected(app, event)
+            filter = {'*.mat','MATLAB Files (*.mat)'};
+            title = 'Save project';
+            defname = [ app.projectData.finger_info.finger_id '.mat'];
+            [file,path,indx] = uiputfile(filter,title,defname); %#ok<ASGLU> 
+            if file
+                full_path = [path file];
+                app.logDBG(['File Selected ' full_path]);
+                app.saveProject(full_path);
+                app.GUI_displayWarn('Save ok',['saved on ' app.project_path], true);
+            end
+        end
+
+        % Callback function: GUI_refresh_minimalMenu, RefreshGUIButton
+        function GUI_refresh_minimalMenuSelected(app, event)
+            app.GUI_refreshMinimal();
+        end
+
+        % Menu selected function: SaveMenu
+        function SaveMenuSelected(app, event)
+            app.saveProject();
+            app.GUI_displayWarn('Save ok',['saved on ' app.project_path], true);
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create FingerCalibrationUIFigure and hide until all components are created
+            app.FingerCalibrationUIFigure = uifigure('Visible', 'off');
+            app.FingerCalibrationUIFigure.Position = [100 100 960 540];
+            app.FingerCalibrationUIFigure.Name = 'Finger Calibration';
+            app.FingerCalibrationUIFigure.CloseRequestFcn = createCallbackFcn(app, @FingerCalibrationUIFigureCloseRequest, true);
+
+            % Create FileMenu
+            app.FileMenu = uimenu(app.FingerCalibrationUIFigure);
+            app.FileMenu.Text = 'File';
+
+            % Create NewMenu
+            app.NewMenu = uimenu(app.FileMenu);
+            app.NewMenu.MenuSelectedFcn = createCallbackFcn(app, @NewMenuSelected, true);
+            app.NewMenu.Text = 'New';
+
+            % Create SaveMenu
+            app.SaveMenu = uimenu(app.FileMenu);
+            app.SaveMenu.MenuSelectedFcn = createCallbackFcn(app, @SaveMenuSelected, true);
+            app.SaveMenu.Text = 'Save';
+
+            % Create SavewithNameMenu
+            app.SavewithNameMenu = uimenu(app.FileMenu);
+            app.SavewithNameMenu.MenuSelectedFcn = createCallbackFcn(app, @SavewithNameMenuSelected, true);
+            app.SavewithNameMenu.Text = 'Save with Name...';
+
+            % Create LoadMenu
+            app.LoadMenu = uimenu(app.FileMenu);
+            app.LoadMenu.MenuSelectedFcn = createCallbackFcn(app, @LoadMenuSelected, true);
+            app.LoadMenu.Text = 'Load...';
+
+            % Create ToolMenu
+            app.ToolMenu = uimenu(app.FingerCalibrationUIFigure);
+            app.ToolMenu.Text = 'Tool';
+
+            % Create ROSMenu
+            app.ROSMenu = uimenu(app.ToolMenu);
+            app.ROSMenu.Text = 'ROS';
+
+            % Create initROSMenu
+            app.initROSMenu = uimenu(app.ROSMenu);
+            app.initROSMenu.MenuSelectedFcn = createCallbackFcn(app, @initROSMenuSelected, true);
+            app.initROSMenu.Text = 'init ROS';
+
+            % Create stopROSMenu
+            app.stopROSMenu = uimenu(app.ROSMenu);
+            app.stopROSMenu.MenuSelectedFcn = createCallbackFcn(app, @stopROSMenuSelected, true);
+            app.stopROSMenu.Text = 'stop ROS';
+
+            % Create DBGMenu
+            app.DBGMenu = uimenu(app.ToolMenu);
+            app.DBGMenu.Text = 'DBG';
+
+            % Create GUI_refresh_minimalMenu
+            app.GUI_refresh_minimalMenu = uimenu(app.DBGMenu);
+            app.GUI_refresh_minimalMenu.MenuSelectedFcn = createCallbackFcn(app, @GUI_refresh_minimalMenuSelected, true);
+            app.GUI_refresh_minimalMenu.Text = 'GUI_refresh_minimal';
+
+            % Create gridLayout_main_grid
+            app.gridLayout_main_grid = uigridlayout(app.FingerCalibrationUIFigure);
+            app.gridLayout_main_grid.ColumnWidth = {'2x', '1x'};
+            app.gridLayout_main_grid.RowHeight = {'1x'};
+
+            % Create GridLayout2
+            app.GridLayout2 = uigridlayout(app.gridLayout_main_grid);
+            app.GridLayout2.Padding = [0 0 0 0];
+            app.GridLayout2.Layout.Row = 1;
+            app.GridLayout2.Layout.Column = 1;
+
+            % Create Panel_ax_fxfy
+            app.Panel_ax_fxfy = uipanel(app.GridLayout2);
+            app.Panel_ax_fxfy.Layout.Row = 1;
+            app.Panel_ax_fxfy.Layout.Column = 1;
+
+            % Create GridLayout_ax_fxfy
+            app.GridLayout_ax_fxfy = uigridlayout(app.Panel_ax_fxfy);
+            app.GridLayout_ax_fxfy.ColumnWidth = {'1x'};
+            app.GridLayout_ax_fxfy.RowHeight = {'1x'};
+
+            % Create axes_fx_fy
+            app.axes_fx_fy = uiaxes(app.GridLayout_ax_fxfy);
+            title(app.axes_fx_fy, '')
+            xlabel(app.axes_fx_fy, 'f_x')
+            ylabel(app.axes_fx_fy, 'f_y')
+            app.axes_fx_fy.Layout.Row = 1;
+            app.axes_fx_fy.Layout.Column = 1;
+
+            % Create Panel_ax_fxtau
+            app.Panel_ax_fxtau = uipanel(app.GridLayout2);
+            app.Panel_ax_fxtau.Layout.Row = 1;
+            app.Panel_ax_fxtau.Layout.Column = 2;
+
+            % Create GridLayout_ax_fxtau
+            app.GridLayout_ax_fxtau = uigridlayout(app.Panel_ax_fxtau);
+            app.GridLayout_ax_fxtau.ColumnWidth = {'1x'};
+            app.GridLayout_ax_fxtau.RowHeight = {'1x'};
+
+            % Create axes_fx_tau
+            app.axes_fx_tau = uiaxes(app.GridLayout_ax_fxtau);
+            title(app.axes_fx_tau, '')
+            xlabel(app.axes_fx_tau, 'f_x')
+            ylabel(app.axes_fx_tau, '\tau_z')
+            app.axes_fx_tau.Layout.Row = 1;
+            app.axes_fx_tau.Layout.Column = 1;
+
+            % Create Panel_ax_taufy
+            app.Panel_ax_taufy = uipanel(app.GridLayout2);
+            app.Panel_ax_taufy.Layout.Row = 2;
+            app.Panel_ax_taufy.Layout.Column = 1;
+
+            % Create GridLayout_ax_taufy
+            app.GridLayout_ax_taufy = uigridlayout(app.Panel_ax_taufy);
+            app.GridLayout_ax_taufy.ColumnWidth = {'1x'};
+            app.GridLayout_ax_taufy.RowHeight = {'1x'};
+
+            % Create axes_tau_fy
+            app.axes_tau_fy = uiaxes(app.GridLayout_ax_taufy);
+            title(app.axes_tau_fy, '')
+            xlabel(app.axes_tau_fy, '\tau')
+            ylabel(app.axes_tau_fy, 'f_y')
+            app.axes_tau_fy.Layout.Row = 1;
+            app.axes_tau_fy.Layout.Column = 1;
+
+            % Create Panel_ax_3d
+            app.Panel_ax_3d = uipanel(app.GridLayout2);
+            app.Panel_ax_3d.Layout.Row = 2;
+            app.Panel_ax_3d.Layout.Column = 2;
+
+            % Create GridLayout_ax_3d
+            app.GridLayout_ax_3d = uigridlayout(app.Panel_ax_3d);
+            app.GridLayout_ax_3d.ColumnWidth = {'1x'};
+            app.GridLayout_ax_3d.RowHeight = {'1x'};
+
+            % Create axes_3d
+            app.axes_3d = uiaxes(app.GridLayout_ax_3d);
+            title(app.axes_3d, '')
+            xlabel(app.axes_3d, 'f_x')
+            ylabel(app.axes_3d, 'f_y')
+            app.axes_3d.Layout.Row = 1;
+            app.axes_3d.Layout.Column = 1;
+
+            % Create GridLayout3
+            app.GridLayout3 = uigridlayout(app.gridLayout_main_grid);
+            app.GridLayout3.ColumnWidth = {'1x'};
+            app.GridLayout3.RowHeight = {'1x', '0.1x', '0.7x'};
+            app.GridLayout3.Padding = [0 0 0 0];
+            app.GridLayout3.Layout.Row = 1;
+            app.GridLayout3.Layout.Column = 2;
+
+            % Create GridLayout4
+            app.GridLayout4 = uigridlayout(app.GridLayout3);
+            app.GridLayout4.ColumnWidth = {'1x', '1x', '0.25x', '1x'};
+            app.GridLayout4.RowHeight = {'1x'};
+            app.GridLayout4.Padding = [0 0 0 0];
+            app.GridLayout4.Layout.Row = 2;
+            app.GridLayout4.Layout.Column = 1;
+
+            % Create lamp_status
+            app.lamp_status = uilamp(app.GridLayout4);
+            app.lamp_status.Layout.Row = 1;
+            app.lamp_status.Layout.Column = 3;
+
+            % Create label_status
+            app.label_status = uilabel(app.GridLayout4);
+            app.label_status.HorizontalAlignment = 'center';
+            app.label_status.Layout.Row = 1;
+            app.label_status.Layout.Column = 2;
+            app.label_status.Text = 'Status';
+
+            % Create switch_run
+            app.switch_run = uiswitch(app.GridLayout4, 'slider');
+            app.switch_run.Layout.Row = 1;
+            app.switch_run.Layout.Column = 1;
+
+            % Create ABORTButton
+            app.ABORTButton = uibutton(app.GridLayout4, 'push');
+            app.ABORTButton.ButtonPushedFcn = createCallbackFcn(app, @ABORTButtonPushed, true);
+            app.ABORTButton.BackgroundColor = [1 0 0];
+            app.ABORTButton.FontColor = [1 1 1];
+            app.ABORTButton.Layout.Row = 1;
+            app.ABORTButton.Layout.Column = 4;
+            app.ABORTButton.Text = 'ABORT';
+
+            % Create Panel_ax_centroid
+            app.Panel_ax_centroid = uipanel(app.GridLayout3);
+            app.Panel_ax_centroid.Layout.Row = 1;
+            app.Panel_ax_centroid.Layout.Column = 1;
+
+            % Create GridLayout_ax_centroid
+            app.GridLayout_ax_centroid = uigridlayout(app.Panel_ax_centroid);
+            app.GridLayout_ax_centroid.ColumnWidth = {'1x'};
+            app.GridLayout_ax_centroid.RowHeight = {'1x'};
+
+            % Create axes_centroid
+            app.axes_centroid = uiaxes(app.GridLayout_ax_centroid);
+            title(app.axes_centroid, 'Centroid')
+            xlabel(app.axes_centroid, 'X [m]')
+            ylabel(app.axes_centroid, 'Y [m]')
+            app.axes_centroid.Layout.Row = 1;
+            app.axes_centroid.Layout.Column = 1;
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.GridLayout3);
+            app.TabGroup.Layout.Row = 3;
+            app.TabGroup.Layout.Column = 1;
+
+            % Create GUITab
+            app.GUITab = uitab(app.TabGroup);
+            app.GUITab.Title = 'GUI';
+
+            % Create GridLayout8
+            app.GridLayout8 = uigridlayout(app.GUITab);
+            app.GridLayout8.ColumnWidth = {'1x'};
+            app.GridLayout8.RowHeight = {'1x', '1x', '1x'};
+
+            % Create GridLayout9
+            app.GridLayout9 = uigridlayout(app.GridLayout8);
+            app.GridLayout9.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout9.RowHeight = {'1x'};
+            app.GridLayout9.Layout.Row = 1;
+            app.GridLayout9.Layout.Column = 1;
+
+            % Create TotSamplesLabel
+            app.TotSamplesLabel = uilabel(app.GridLayout9);
+            app.TotSamplesLabel.HorizontalAlignment = 'right';
+            app.TotSamplesLabel.Layout.Row = 1;
+            app.TotSamplesLabel.Layout.Column = 1;
+            app.TotSamplesLabel.Text = 'Tot Samples:';
+
+            % Create label_tot_samples
+            app.label_tot_samples = uilabel(app.GridLayout9);
+            app.label_tot_samples.Layout.Row = 1;
+            app.label_tot_samples.Layout.Column = 2;
+            app.label_tot_samples.Text = '0';
+
+            % Create ThisSamplesLabel
+            app.ThisSamplesLabel = uilabel(app.GridLayout9);
+            app.ThisSamplesLabel.HorizontalAlignment = 'right';
+            app.ThisSamplesLabel.Layout.Row = 1;
+            app.ThisSamplesLabel.Layout.Column = 3;
+            app.ThisSamplesLabel.Text = 'This Samples:';
+
+            % Create label_this_samples
+            app.label_this_samples = uilabel(app.GridLayout9);
+            app.label_this_samples.Layout.Row = 1;
+            app.label_this_samples.Layout.Column = 4;
+            app.label_this_samples.Text = '0';
+
+            % Create GridLayout10
+            app.GridLayout10 = uigridlayout(app.GridLayout8);
+            app.GridLayout10.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout10.RowHeight = {'1x'};
+            app.GridLayout10.Layout.Row = 2;
+            app.GridLayout10.Layout.Column = 1;
+
+            % Create ZoneDropDownLabel
+            app.ZoneDropDownLabel = uilabel(app.GridLayout10);
+            app.ZoneDropDownLabel.HorizontalAlignment = 'right';
+            app.ZoneDropDownLabel.Layout.Row = 1;
+            app.ZoneDropDownLabel.Layout.Column = 1;
+            app.ZoneDropDownLabel.Text = 'Zone:';
+
+            % Create dropDown_zone
+            app.dropDown_zone = uidropdown(app.GridLayout10);
+            app.dropDown_zone.ValueChangedFcn = createCallbackFcn(app, @slider_plot_radiusValueChanged, true);
+            app.dropDown_zone.Layout.Row = 1;
+            app.dropDown_zone.Layout.Column = 2;
+
+            % Create FnIntervalLabel
+            app.FnIntervalLabel = uilabel(app.GridLayout10);
+            app.FnIntervalLabel.HorizontalAlignment = 'right';
+            app.FnIntervalLabel.Layout.Row = 1;
+            app.FnIntervalLabel.Layout.Column = 3;
+            app.FnIntervalLabel.Text = 'Fn Interval:';
+
+            % Create dropDown_fn_interval
+            app.dropDown_fn_interval = uidropdown(app.GridLayout10);
+            app.dropDown_fn_interval.ValueChangedFcn = createCallbackFcn(app, @slider_plot_radiusValueChanged, true);
+            app.dropDown_fn_interval.Layout.Row = 1;
+            app.dropDown_fn_interval.Layout.Column = 4;
+
+            % Create GridLayout11
+            app.GridLayout11 = uigridlayout(app.GridLayout8);
+            app.GridLayout11.ColumnWidth = {'0.4x', '1x'};
+            app.GridLayout11.RowHeight = {'1x'};
+            app.GridLayout11.Layout.Row = 3;
+            app.GridLayout11.Layout.Column = 1;
+
+            % Create PlotRadiusSliderLabel
+            app.PlotRadiusSliderLabel = uilabel(app.GridLayout11);
+            app.PlotRadiusSliderLabel.HorizontalAlignment = 'right';
+            app.PlotRadiusSliderLabel.Layout.Row = 1;
+            app.PlotRadiusSliderLabel.Layout.Column = 1;
+            app.PlotRadiusSliderLabel.Text = 'Plot Radius:';
+
+            % Create slider_plot_radius
+            app.slider_plot_radius = uislider(app.GridLayout11);
+            app.slider_plot_radius.Limits = [0 1];
+            app.slider_plot_radius.ValueChangedFcn = createCallbackFcn(app, @slider_plot_radiusValueChanged, true);
+            app.slider_plot_radius.Layout.Row = 1;
+            app.slider_plot_radius.Layout.Column = 2;
+
+            % Create RobotCalibTab
+            app.RobotCalibTab = uitab(app.TabGroup);
+            app.RobotCalibTab.Title = 'Robot Calib';
+
+            % Create GridLayoutRobotCalibTab
+            app.GridLayoutRobotCalibTab = uigridlayout(app.RobotCalibTab);
+            app.GridLayoutRobotCalibTab.ColumnWidth = {'1x'};
+            app.GridLayoutRobotCalibTab.RowHeight = {'1x', '1x', '1x'};
+
+            % Create GridLayout13
+            app.GridLayout13 = uigridlayout(app.GridLayoutRobotCalibTab);
+            app.GridLayout13.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout13.RowHeight = {'1x'};
+            app.GridLayout13.Layout.Row = 2;
+            app.GridLayout13.Layout.Column = 1;
+
+            % Create ThetaLabel
+            app.ThetaLabel = uilabel(app.GridLayout13);
+            app.ThetaLabel.HorizontalAlignment = 'right';
+            app.ThetaLabel.Layout.Row = 1;
+            app.ThetaLabel.Layout.Column = 1;
+            app.ThetaLabel.Text = 'Theta:';
+
+            % Create label_theta
+            app.label_theta = uilabel(app.GridLayout13);
+            app.label_theta.Layout.Row = 1;
+            app.label_theta.Layout.Column = 2;
+            app.label_theta.Text = {'NaN'; ''};
+
+            % Create PhiLabel
+            app.PhiLabel = uilabel(app.GridLayout13);
+            app.PhiLabel.HorizontalAlignment = 'right';
+            app.PhiLabel.Layout.Row = 1;
+            app.PhiLabel.Layout.Column = 3;
+            app.PhiLabel.Text = 'Phi:';
+
+            % Create label_phi
+            app.label_phi = uilabel(app.GridLayout13);
+            app.label_phi.Layout.Row = 1;
+            app.label_phi.Layout.Column = 4;
+            app.label_phi.Text = 'NaN';
+
+            % Create GridLayout14
+            app.GridLayout14 = uigridlayout(app.GridLayoutRobotCalibTab);
+            app.GridLayout14.ColumnWidth = {'1x', '1x', '1x', '1x'};
+            app.GridLayout14.RowHeight = {'1x'};
+            app.GridLayout14.Layout.Row = 3;
+            app.GridLayout14.Layout.Column = 1;
+
+            % Create label_fn
+            app.label_fn = uilabel(app.GridLayout14);
+            app.label_fn.Layout.Row = 1;
+            app.label_fn.Layout.Column = 2;
+            app.label_fn.Text = 'NaN';
+
+            % Create FnLabel
+            app.FnLabel = uilabel(app.GridLayout14);
+            app.FnLabel.HorizontalAlignment = 'right';
+            app.FnLabel.Layout.Row = 1;
+            app.FnLabel.Layout.Column = 1;
+            app.FnLabel.Text = 'Fn:';
+
+            % Create WrenchLabel
+            app.WrenchLabel = uilabel(app.GridLayout14);
+            app.WrenchLabel.HorizontalAlignment = 'right';
+            app.WrenchLabel.Layout.Row = 1;
+            app.WrenchLabel.Layout.Column = 3;
+            app.WrenchLabel.Text = 'Wrench:';
+
+            % Create label_wrench
+            app.label_wrench = uilabel(app.GridLayout14);
+            app.label_wrench.Layout.Row = 1;
+            app.label_wrench.Layout.Column = 4;
+            app.label_wrench.Text = 'NaN';
+
+            % Create GridLayout18
+            app.GridLayout18 = uigridlayout(app.GridLayoutRobotCalibTab);
+            app.GridLayout18.RowHeight = {'1x'};
+            app.GridLayout18.Layout.Row = 1;
+            app.GridLayout18.Layout.Column = 1;
+
+            % Create checkBox_update_gui
+            app.checkBox_update_gui = uicheckbox(app.GridLayout18);
+            app.checkBox_update_gui.Text = 'Update GUI';
+            app.checkBox_update_gui.Layout.Row = 1;
+            app.checkBox_update_gui.Layout.Column = 1;
+            app.checkBox_update_gui.Value = true;
+
+            % Create RefreshGUIButton
+            app.RefreshGUIButton = uibutton(app.GridLayout18, 'push');
+            app.RefreshGUIButton.ButtonPushedFcn = createCallbackFcn(app, @GUI_refresh_minimalMenuSelected, true);
+            app.RefreshGUIButton.Layout.Row = 1;
+            app.RefreshGUIButton.Layout.Column = 2;
+            app.RefreshGUIButton.Text = 'Refresh GUI';
+
+            % Create LogTab
+            app.LogTab = uitab(app.TabGroup);
+            app.LogTab.Title = 'Log';
+
+            % Create GridLayout15
+            app.GridLayout15 = uigridlayout(app.LogTab);
+            app.GridLayout15.ColumnWidth = {'1x'};
+            app.GridLayout15.RowHeight = {'1x'};
+
+            % Create textArea_log
+            app.textArea_log = uitextarea(app.GridLayout15);
+            app.textArea_log.Editable = 'off';
+            app.textArea_log.Layout.Row = 1;
+            app.textArea_log.Layout.Column = 1;
+            app.textArea_log.Value = {'END LOG'};
+
+            % Show the figure after all components are created
+            app.FingerCalibrationUIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = robot_calibration_gui
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.FingerCalibrationUIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @startupFcn)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.FingerCalibrationUIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>

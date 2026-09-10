@@ -1,0 +1,11 @@
+
+- git:
+    local-name: ros_toon
+    uri: git@github.com:marcocostanzo/ros_toon.git
+    version: TOON_3.2
+
+- git:
+    local-name: sun_learning_lib
+    uri: git@github.com:marcocostanzo/sun_learning_lib.git
+    version: V2
+

@@ -1,0 +1,3 @@
+[submodule "learning_lib/train_lib"]
+	path = learning_lib/train_lib
+	url = git@github.com:Vanvitelli-Robotics/matlab_train_lib.git
