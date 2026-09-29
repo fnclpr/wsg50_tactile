@@ -1,0 +1,15 @@
+# vcstool import file for external (non-vendored) dependencies.
+#
+# Usage (inside the dev container, from /workspace):
+#   vcs import src < tactile_ws.repos
+#
+# `serial`: CONFIRMED working (Step 4, tested against the fake sensor
+# harness end-to-end: vcs import -> colcon build -> real C++ node ->
+# real PTY -> verified output). Vanvitelli-Robotics/serial.git is the
+# correct fork for this ROS2 Jazzy / ament_cmake workspace.
+
+repositories:
+  serial:
+    type: git
+    url: https://github.com/Vanvitelli-Robotics/serial.git
+    version: main

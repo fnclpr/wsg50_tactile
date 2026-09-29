@@ -1,0 +1,39 @@
+services:
+  tactile_dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tactile_ws:dev
+    container_name: tactile_dev
+
+    # Single-machine dev setup: host networking makes ROS2's default
+    # UDP-multicast discovery "just work" without extra DDS config.
+    # Revisit (bridge network + explicit ROS_DOMAIN_ID) once we run
+    # multiple containers or talk to a real robot on the network.
+    network_mode: host
+
+    # Bind-mount the whole workspace (one level up from this docker/
+    # folder) so host edits are immediately visible in the container.
+    volumes:
+      - ..:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=0
+
+    # USB/serial device access for the tactile sensor + WSG50-110.
+    # `privileged: true` is the simplest option for local development
+    # (device nodes like /dev/ttyUSB* appear/disappear as cables are
+    # plugged in, so a fixed device list is annoying to maintain).
+    # ENGINEERING DECISION: tighten this before this container is ever
+    # used outside a trusted local dev machine -- replace with an
+    # explicit `devices:` list, e.g.:
+    #   devices:
+    #     - "/dev/ttyUSB0:/dev/ttyUSB0"
+    #     - "/dev/ttyUSB1:/dev/ttyUSB1"
+    privileged: true
+
+    stdin_open: true
+    tty: true

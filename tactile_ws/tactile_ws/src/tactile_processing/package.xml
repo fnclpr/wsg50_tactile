@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tactile_processing</name>
+  <version>0.1.0</version>
+  <description>
+    Bridges tactile_core's hardware/ROS-free processing math (Step 1)
+    into the ROS2 graph: subscribes to debiased tactile data and
+    publishes tactile_msgs/TactileProcessed (centroid + geometric
+    zone). The limit_surface_point field is intentionally NOT
+    populated yet -- it needs a wrench estimate that does not exist
+    until Step 12 (ANN inference / combine_wrench).
+
+    Note: `tactile_core` itself is NOT listed as a &lt;depend&gt; here.
+    It is a plain pip package (see src/tactile_core/COLCON_IGNORE),
+    installed editable into the container's system Python by
+    docker/entrypoint.sh, so it is importable without any ROS-level
+    dependency declaration.
+  </description>
+  <maintainer email="you@example.com">Francesco</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>uclv_tactile_interfaces</depend>
+  <depend>tactile_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

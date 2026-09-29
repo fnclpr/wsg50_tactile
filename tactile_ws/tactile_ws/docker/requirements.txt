@@ -1,0 +1,26 @@
+# Python dependencies for the tactile sensor dev container.
+# Installed with pip inside the container (system-wide is intentional
+# and safe here -- the container itself is the isolation boundary,
+# not a venv; this matches how ROS2's own rclpy/message packages are
+# installed via apt into system python3).
+
+numpy>=1.24
+scipy>=1.11
+pandas>=2.0
+matplotlib>=3.7
+scikit-learn>=1.3
+pyserial>=3.5
+h5py>=3.9
+PyYAML>=6.0
+# Pinned <8: ROS2 Jazzy's apt-installed `python3-launch-testing` package
+# (pulled in by ros-dev-tools) registers a pytest11 plugin built against
+# pytest 7.x's hookspec. pytest 8 renamed pytest_pycollect_makemodule's
+# `path` argument to `collection_path`, which makes plugin registration
+# fail with PluginValidationError at pytest startup. Discovered while
+# testing Step 2 -- do not remove this pin without also checking whether
+# ROS2 Jazzy has since updated launch_testing for pytest 8 compatibility.
+pytest>=7.4,<8
+
+# GUI (calibration_gui / monitor_gui, Steps 9/14)
+PySide6>=6.6
+pyqtgraph>=0.13
