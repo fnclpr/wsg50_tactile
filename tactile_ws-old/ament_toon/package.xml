@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ament_toon</name>
+  <version>0.0.0</version>
+  <description>Installer for the TooN library using the AMENT infrastructure</description>
+  <maintainer email="marco.costanzo@unicampania.it">Marco Costanzo</maintainer>
+  <license>BSD</license>
+
+  <url type="website">https://github.com/edrosten/TooN</url>
+  <author email="ed@edwardrosten.com">Tom Drummond, Edward Rosten, et al</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>lapack</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
