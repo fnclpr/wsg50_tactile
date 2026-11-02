@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tactile-core"
+version = "0.1.0"
+description = "Hardware-independent core math library for the Vanvitelli force/tactile sensor (Sensors 2019, 19, 966)"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "h5py>=3.9",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["tactile_core*"]

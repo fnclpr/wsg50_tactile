@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tactile_calibration</name>
+  <version>0.2.0</version>
+  <description>
+    Calibration library for the Vanvitelli tactile sensor. Steps 11-12: PCA, MLP training, NET_FILE/NPZ/YAML export
+    compression of the 25 taxel voltages (legacy formula y = U^T (x - mean)).
+
+    numpy and scikit-learn are plain pip dependencies (see
+    docker/requirements.txt), not declared as rosdep keys, following the
+    same convention as tactile_gui.
+  </description>
+  <maintainer email="you@example.com">Francesco</maintainer>
+  <license>Apache-2.0</license>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

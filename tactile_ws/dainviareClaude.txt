@@ -1,0 +1,57 @@
+root@ASUS-Francesco:/workspace# python3 - <<'EOF'
+from tactile_core.calibration.dataset import ProjectData
+pd = ProjectData.load("calibration/session_1")
+print("samples:", pd.num_samples(), "| finger:", pd.finger_info.finger_id)
+EOF
+samples: 0 | finger: F999_dry_run
+
+
+
+
+
+
+
+
+root@ASUS-Francesco:/workspace# python3 - <<'EOF'
+import numpy as np
+from tactile_core.calibration.dataset import ProjectData
+
+rng = np.random.default_rng(0)
+pd = ProjectData()
+for i in range(1500):
+    lat = rng.uniform(0, 1, 4)
+    v = lat @ rng.normal(size=(4, 25)) * 0.5 + 1.0
+    w = [lat[0] - lat[1], lat[2] ** 2, -5 * lat[3], 0.01 * lat[1], 0.0, 0.02 * lat[0]]
+    pd.add_sample(float(i), v, w, [0, 0, 0, 0, 0, 0, 1], zone_index=1, fn_index=1)
+pd.save("calibration/synthetic_test")
+print("saved", pd.num_samples())
+EOF
+
+ros2 run tactile_calibration tactile_train train \
+    --data calibration/synthetic_test --out-dir calibration/synthetic_out \
+    --formats all --hidden 24x2 --epochs 150
+saved 1500
+samples=1500 broken_cells(1-based)=[]
+epoch     1  train_mse=0.63323  val_mse=0.60981  best=0.60981
+epoch    10  train_mse=0.31000  val_mse=0.31183  best=0.31183
+epoch    20  train_mse=0.26980  val_mse=0.27609  best=0.27609
+epoch    30  train_mse=0.25955  val_mse=0.26756  best=0.26756
+epoch    40  train_mse=0.25515  val_mse=0.26409  best=0.26409
+epoch    50  train_mse=0.25286  val_mse=0.26241  best=0.26241
+epoch    60  train_mse=0.25151  val_mse=0.26151  best=0.26151
+epoch    70  train_mse=0.25061  val_mse=0.26098  best=0.26098
+epoch    80  train_mse=0.24995  val_mse=0.26064  best=0.26064
+epoch    90  train_mse=0.24941  val_mse=0.26038  best=0.26038
+epoch   100  train_mse=0.24893  val_mse=0.26015  best=0.26015
+epoch   110  train_mse=0.24847  val_mse=0.25992  best=0.25992
+epoch   120  train_mse=0.24802  val_mse=0.25969  best=0.25969
+epoch   130  train_mse=0.24755  val_mse=0.25944  best=0.25944
+epoch   140  train_mse=0.24707  val_mse=0.25917  best=0.25917
+epoch   150  train_mse=0.24655  val_mse=0.25887  best=0.25887
+net_file: calibration/synthetic_out/NET_FILE.txt
+npz: calibration/synthetic_out/model.npz
+yaml: calibration/synthetic_out/model.yaml
+[train] n=754 RMSE=0.4111 0.2918 1.419 0.002823 0.02524 0.005619
+[validation] n=604 RMSE=0.4238 0.2992 1.418 0.00296 0.02749 0.005738
+[test] n=151 RMSE=0.4101 0.278 1.533 0.002972 0.0226 0.005366
+stop_reason=max_epochs epochs=150
